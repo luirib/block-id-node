@@ -1,0 +1,23 @@
+# Routes
+# This file defines all application routes (Higher priority routes first)
+# ~~~~
+
+
+GET     /nodes                      controllers.NodesController.list()
+
+POST    /masterkeypart              controllers.NodesController.saveMasterKey()
+GET     /masterkeypart/:id          controllers.NodesController.getMasterKey(id:String)
+
+POST    /block                          controllers.NodesController.saveBlock()
+GET     /block/:id                      controllers.NodesController.getBlock(id:String)
+GET   /blocks/:keyid                    controllers.NodesController.listBlockIds(keyid:String)
+
+
+
+POST    /assertion                      controllers.NodesController.saveAssertion()
+POST    /assertion/trade                controllers.NodesController.getTradeAssertion()
+
+
+
+# Map static resources from the /public folder to the /assets URL path
+GET     /assets/*file               controllers.Assets.at(path="/public", file)

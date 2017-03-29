@@ -3,32 +3,31 @@ package controllers;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.mashape.unirest.http.Unirest;
+import com.nimbusds.jose.JOSEException;
 import com.nimbusds.jose.JWSObject;
 import com.nimbusds.jose.JWSVerifier;
 import com.nimbusds.jose.crypto.RSASSAVerifier;
-import com.nimbusds.jose.jwk.JWK;
 import com.nimbusds.jose.jwk.JWKSet;
 import com.nimbusds.jose.jwk.RSAKey;
 import com.nimbusds.jose.util.Base64URL;
+import com.nimbusds.jwt.JWTClaimsSet;
 import com.nimbusds.jwt.SignedJWT;
 
 import models.*;
-import models.bigchaindb.Transaction;
+import net.minidev.json.JSONObject;
 import play.db.jpa.Transactional;
 import play.mvc.BodyParser;
 import play.mvc.Controller;
 import play.mvc.Result;
 
-import java.io.File;
-import java.io.FileNotFoundException;
 import java.io.IOException;
-import java.nio.ByteBuffer;
-import java.security.interfaces.RSAPublicKey;
+import java.security.InvalidKeyException;
+import java.text.ParseException;
 import java.util.*;
 
 import static play.libs.Json.fromJson;
 import static play.libs.Json.toJson;
-import com.nimbusds.jose.util.Base64;
+
 import sun.security.rsa.RSAPublicKeyImpl;
 
 /**
@@ -95,27 +94,55 @@ public class NodesController extends Controller
     }
 
 
-    @BodyParser.Of(value = BodyParser.Json.class)
+    @BodyParser.Of(value = BodyParser.Text.class)
     public Result saveBlock()
     {
-        JsonNode json = request().body().asJson();
-        if (json == null)
+        String data = request().body().asText();
+        if (data == null)
         {
-            return badRequest("Empty JSON object.");
-        }
-        Block b = fromJson(json, Block.class);
-
-        if(b != null)
-        {
-            Transaction trans = new Transaction();
-            trans.setId(b.getId());
-        }
-        else
-        {
-            return badRequest("Block in the wrong format");
+            return badRequest("Data not received");
         }
 
-        return ok(toJson(b));
+        try {
+            final SignedJWT jwt = SignedJWT.parse(data);
+            String keyId = jwt.getHeader().getKeyID();
+
+
+
+
+            MasterKeyPart key = keyMap.get(jwt.getHeader().getKeyID());
+
+            Base64URL base64URL = new Base64URL(key.getPublicKey());
+            RSAPublicKeyImpl publicKey = new RSAPublicKeyImpl(base64URL.decode());
+
+            JWSVerifier verifier = new RSASSAVerifier(publicKey);
+
+            if(!jwt.verify(verifier))
+            {
+                return unauthorized("The signature is not correct");
+            }
+
+            UUID blockId = UUID.randomUUID();
+
+            if(!keyMapBlock.containsKey(key))
+            {
+                keyMapBlock.put(key, new ArrayList<String>());
+            }
+            keyMapBlock.get(key).add(blockId.toString());
+
+            blockMap.put(blockId.toString(),jwt);
+
+            System.err.println("Adding block:"+ blockId.toString());
+
+        } catch (ParseException e) {
+            return badRequest("Expecting a Signed ");
+        } catch (InvalidKeyException e) {
+            e.printStackTrace();
+        } catch (JOSEException e) {
+            return badRequest(e.getMessage());
+        }
+        //and then finally
+        return ok();
     }
 
     public Result getBlock(String id)

@@ -2,19 +2,15 @@ package controllers;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.mashape.unirest.http.Unirest;
 import com.nimbusds.jose.JOSEException;
-import com.nimbusds.jose.JWSObject;
 import com.nimbusds.jose.JWSVerifier;
 import com.nimbusds.jose.crypto.RSASSAVerifier;
 import com.nimbusds.jose.jwk.JWKSet;
 import com.nimbusds.jose.jwk.RSAKey;
 import com.nimbusds.jose.util.Base64URL;
-import com.nimbusds.jwt.JWTClaimsSet;
 import com.nimbusds.jwt.SignedJWT;
 
 import models.*;
-import net.minidev.json.JSONObject;
 import play.db.jpa.Transactional;
 import play.mvc.BodyParser;
 import play.mvc.Controller;
@@ -107,9 +103,6 @@ public class NodesController extends Controller
             final SignedJWT jwt = SignedJWT.parse(data);
             String keyId = jwt.getHeader().getKeyID();
 
-
-
-
             MasterKeyPart key = keyMap.get(jwt.getHeader().getKeyID());
 
             Base64URL base64URL = new Base64URL(key.getPublicKey());
@@ -134,15 +127,16 @@ public class NodesController extends Controller
 
             System.err.println("Adding block:"+ blockId.toString());
 
+            //and then finally
+            return ok(blockId.toString());
+
         } catch (ParseException e) {
             return badRequest("Expecting a Signed ");
         } catch (InvalidKeyException e) {
-            e.printStackTrace();
+            return badRequest(e.getMessage());
         } catch (JOSEException e) {
             return badRequest(e.getMessage());
         }
-        //and then finally
-        return ok();
     }
 
     public Result getBlock(String id)
